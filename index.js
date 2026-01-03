@@ -73,7 +73,7 @@ function formatFechaBonita(isoString, timeZone) {
 /**
  * Optional (prepared) webhook secret validation hook (not used by default).
  * Example usage later:
- *   if (!validateWebhookSecret($headers["x-webhook-secret"], EXPECTED)) throw new Error("Invalid secret");
+ *   if (!validateWebhookSecret(headers.xxx, EXPECTED)) throw new Error("Invalid secret");
  */
 function validateWebhookSecret(receivedSecret, expectedSecret) {
   if (!expectedSecret) return true;
@@ -81,7 +81,9 @@ function validateWebhookSecret(receivedSecret, expectedSecret) {
 }
 
 // --- main ---
-const payload = $input.first().json;
+const payload = $input.first().json.body;
+// use to verify signature in the future, define better option for that
+const headers = $input.first().json.headers;
 
 const data = getPath(payload, "data", null);
 if (!data) {
@@ -150,6 +152,7 @@ const totalAmount =
 const currency = toStringOrNull(getPath(data, "payment.currency", null));
 
 // Deterministic token
+// I am not agree with include the email, is the email the custmer ID ?
 const raw = `${SECRET}|${bookingId}|${customerEmail}`;
 const qrToken = sha256Base64Url(raw);
 
@@ -183,5 +186,17 @@ const resultado = {
   checkinUrl,
   idempotencyKey,
 };
+//  only for test, just  to verify if the final json contain the expected keys
+const REQUIRED_KEYS = [
+  "bookingId","bookingStatus","paymentStatus","customerFullName","customerEmail","customerPhone",
+  "type","itemId","itemName","employeeName","locationName","startAt","endAt","timezone",
+  "fechaBonita","totalAmount","currency","qrToken","checkinUrl","idempotencyKey"
+];
+
+for (const k of REQUIRED_KEYS) {
+  if (!(k in resultado)) {
+    throw new Error(`Output contract broken: missing key '${k}'`);
+  }
+}
 
 return [{ json: resultado }];
